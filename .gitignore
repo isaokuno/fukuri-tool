@@ -1,0 +1,11 @@
+# 依存・ビルド
+node_modules/
+dist/
+
+# Firebase
+.firebase/
+firebase-debug.log
+*-debug.log
+
+# OS
+.DS_Store

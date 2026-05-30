@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>複利の学習ツール</title>
+  <meta name="description" content="元金・金利・年数を入れると、複利でお金がどう増える（借金がどう膨らむ）かをグラフで学べるツール。" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --accent2: #f472b6;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --line: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+    header { text-align: center; margin-bottom: 8px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; }
+    .mode {
+      display: flex; gap: 8px; justify-content: center; margin-bottom: 20px;
+    }
+    .mode button {
+      flex: 1; max-width: 200px; padding: 10px; border: 1px solid var(--line);
+      background: var(--card); color: var(--muted); border-radius: 10px;
+      font-size: 0.95rem; cursor: pointer; transition: .15s;
+    }
+    .mode button.active { color: #fff; border-color: var(--accent); background: #0c4a6e; }
+    .card { background: var(--card); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    .field { margin-bottom: 14px; }
+    input[type="number"], select {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+      background: #0f172a; color: var(--text); font-size: 1rem;
+    }
+    .range-row { display: flex; align-items: center; gap: 12px; }
+    input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .range-val { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+    .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 560px) { .results { grid-template-columns: 1fr; } }
+    .stat { background: var(--card); border-radius: 14px; padding: 16px; text-align: center; }
+    .stat .k { font-size: 0.8rem; color: var(--muted); }
+    .stat .v { font-size: 1.4rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .stat.principal .v { color: var(--accent); }
+    .stat.interest .v { color: var(--accent2); }
+    .stat.total .v { color: #fff; }
+    canvas { background: var(--card); border-radius: 14px; padding: 12px; }
+    .note { color: var(--muted); font-size: 0.8rem; margin-top: 24px; text-align: center; }
+    .note a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📈 複利の学習ツール</h1>
+      <p class="sub">元金・金利・年数を入れると、お金がどう増える・借金がどう膨らむかが分かります</p>
+    </header>
+
+    <div class="mode">
+      <button id="modeSave" class="active">💰 貯金・投資モード</button>
+      <button id="modeDebt">💳 借金モード</button>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <div class="field">
+            <label id="lblPrincipal">最初の元金（円）</label>
+            <input type="number" id="principal" value="1000000" min="0" step="10000" />
+          </div>
+          <div class="field">
+            <label id="lblMonthly">毎月の積立（円）</label>
+            <input type="number" id="monthly" value="30000" min="0" step="1000" />
+          </div>
+        </div>
+        <div>
+          <div class="field">
+            <label>年利（％） <span id="rateVal" class="range-val">5.0%</span></label>
+            <div class="range-row">
+              <input type="range" id="rate" value="5" min="0" max="20" step="0.1" />
+            </div>
+          </div>
+          <div class="field">
+            <label>年数 <span id="yearsVal" class="range-val">20年</span></label>
+            <div class="range-row">
+              <input type="range" id="years" value="20" min="1" max="40" step="1" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="stat principal">
+        <div class="k" id="kPrincipal">投入した元本の合計</div>
+        <div class="v" id="vPrincipal">-</div>
+      </div>
+      <div class="stat interest">
+        <div class="k" id="kInterest">複利でついた利息</div>
+        <div class="v" id="vInterest">-</div>
+      </div>
+      <div class="stat total">
+        <div class="k" id="kTotal">最終的な金額</div>
+        <div class="v" id="vTotal">-</div>
+      </div>
+    </div>
+
+    <canvas id="chart" height="320"></canvas>
+
+    <p class="note">
+      ※ 年1回の複利で計算した概算です。実際の金利・税・手数料は反映していません。学習用ツールです。<br />
+      AI活用ロードマップ 402-B易 / 久野金属工業
+    </p>
+  </div>
+
+  <script>
+    const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+
+    const els = {
+      principal: document.getElementById("principal"),
+      monthly: document.getElementById("monthly"),
+      rate: document.getElementById("rate"),
+      years: document.getElementById("years"),
+      rateVal: document.getElementById("rateVal"),
+      yearsVal: document.getElementById("yearsVal"),
+      vPrincipal: document.getElementById("vPrincipal"),
+      vInterest: document.getElementById("vInterest"),
+      vTotal: document.getElementById("vTotal"),
+      kPrincipal: document.getElementById("kPrincipal"),
+      kInterest: document.getElementById("kInterest"),
+      kTotal: document.getElementById("kTotal"),
+      lblPrincipal: document.getElementById("lblPrincipal"),
+      lblMonthly: document.getElementById("lblMonthly"),
+      modeSave: document.getElementById("modeSave"),
+      modeDebt: document.getElementById("modeDebt"),
+    };
+
+    let mode = "save"; // "save" or "debt"
+
+    function compute() {
+      const P = Number(els.principal.value) || 0;
+      const monthly = Number(els.monthly.value) || 0;
+      const r = (Number(els.rate.value) || 0) / 100;
+      const yrs = Number(els.years.value) || 0;
+
+      const labels = [], balanceData = [], principalData = [];
+      let balance = P;
+      let principalSum = P;
+
+      labels.push("今");
+      balanceData.push(balance);
+      principalData.push(principalSum);
+
+      for (let y = 1; y <= yrs; y++) {
+        // 1年間の毎月積立（借金モードでは毎月返済として元本を減らす）
+        for (let m = 0; m < 12; m++) {
+          if (mode === "save") {
+            balance += monthly;
+            principalSum += monthly;
+          } else {
+            balance -= monthly;
+            principalSum -= monthly;
+            if (balance < 0) balance = 0;
+          }
+        }
+        // 年末に複利
+        balance = balance * (1 + r);
+        labels.push(y + "年後");
+        balanceData.push(balance);
+        principalData.push(principalSum);
+      }
+
+      const finalBalance = balanceData[balanceData.length - 1];
+      const finalPrincipal = principalData[principalData.length - 1];
+      const interest = finalBalance - finalPrincipal;
+
+      els.vPrincipal.textContent = yen(Math.abs(finalPrincipal));
+      els.vInterest.textContent = yen(Math.abs(interest));
+      els.vTotal.textContent = yen(finalBalance);
+
+      return { labels, balanceData, principalData };
+    }
+
+    let chart;
+    function render() {
+      els.rateVal.textContent = Number(els.rate.value).toFixed(1) + "%";
+      els.yearsVal.textContent = els.years.value + "年";
+      const { labels, balanceData, principalData } = compute();
+
+      const accent = mode === "save" ? "#38bdf8" : "#f472b6";
+      const ds = [
+        {
+          label: mode === "save" ? "残高（複利込み）" : "借金残高（利息込み）",
+          data: balanceData,
+          borderColor: accent,
+          backgroundColor: accent + "33",
+          fill: true,
+          tension: 0.25,
+          pointRadius: 0,
+        },
+        {
+          label: mode === "save" ? "投入した元本" : "返済した分の元本イメージ",
+          data: principalData,
+          borderColor: "#64748b",
+          borderDash: [6, 4],
+          fill: false,
+          tension: 0.25,
+          pointRadius: 0,
+        },
+      ];
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = balanceData;
+        chart.data.datasets[0].label = ds[0].label;
+        chart.data.datasets[0].borderColor = accent;
+        chart.data.datasets[0].backgroundColor = accent + "33";
+        chart.data.datasets[1].data = principalData;
+        chart.data.datasets[1].label = ds[1].label;
+        chart.update();
+        return;
+      }
+
+      chart = new Chart(document.getElementById("chart"), {
+        type: "line",
+        data: { labels, datasets: ds },
+        options: {
+          responsive: true,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { labels: { color: "#e2e8f0" } },
+            tooltip: {
+              callbacks: { label: c => c.dataset.label + ": " + yen(c.parsed.y) },
+            },
+          },
+          scales: {
+            x: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } },
+            y: {
+              ticks: { color: "#94a3b8", callback: v => "¥" + (v / 10000).toLocaleString() + "万" },
+              grid: { color: "#334155" },
+            },
+          },
+        },
+      });
+    }
+
+    function setMode(next) {
+      mode = next;
+      const save = mode === "save";
+      els.modeSave.classList.toggle("active", save);
+      els.modeDebt.classList.toggle("active", !save);
+      els.lblPrincipal.textContent = save ? "最初の元金（円）" : "最初の借金額（円）";
+      els.lblMonthly.textContent = save ? "毎月の積立（円）" : "毎月の返済（円）";
+      els.kPrincipal.textContent = save ? "投入した元本の合計" : "残った元本イメージ";
+      els.kInterest.textContent = save ? "複利でついた利息" : "上乗せされた利息";
+      els.kTotal.textContent = save ? "最終的な金額" : "最終的な借金残高";
+      render();
+    }
+
+    [els.principal, els.monthly, els.rate, els.years].forEach(el =>
+      el.addEventListener("input", render)
+    );
+    els.modeSave.addEventListener("click", () => setMode("save"));
+    els.modeDebt.addEventListener("click", () => setMode("debt"));
+
+    render();
+  </script>
+</body>
+</html>
