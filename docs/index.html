@@ -78,19 +78,19 @@
       <div class="grid">
         <div>
           <div class="field">
-            <label id="lblPrincipal">最初の元金（円）</label>
-            <input type="number" id="principal" value="1000000" min="0" step="10000" />
+            <label id="lblPrincipal">最初の元金（万円）</label>
+            <input type="number" id="principal" value="100" min="0" step="10" />
           </div>
           <div class="field">
-            <label id="lblMonthly">毎月の積立（円）</label>
-            <input type="number" id="monthly" value="30000" min="0" step="1000" />
+            <label id="lblMonthly">毎月の積立（万円）</label>
+            <input type="number" id="monthly" value="5" min="0" step="1" />
           </div>
         </div>
         <div>
           <div class="field">
             <label>年利（％） <span id="rateVal" class="range-val">5.0%</span></label>
             <div class="range-row">
-              <input type="range" id="rate" value="5" min="0" max="20" step="0.1" />
+              <input type="range" id="rate" value="10" min="0" max="20" step="0.1" />
             </div>
           </div>
           <div class="field">
@@ -122,12 +122,13 @@
 
     <p class="note">
       ※ 年1回の複利で計算した概算です。実際の金利・税・手数料は反映していません。学習用ツールです。<br />
-      AI活用ロードマップ 402-B易 / 久野金属工業
+      AI活用ロードマップ 402-B易 学習ツール
     </p>
   </div>
 
   <script>
-    const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+    // 内部は円で計算し、表示は万円（小数1桁）に統一
+    const yen = n => (Math.round(n / 1000) / 10).toLocaleString("ja-JP") + "万円";
 
     const els = {
       principal: document.getElementById("principal"),
@@ -151,8 +152,9 @@
     let mode = "save"; // "save" or "debt"
 
     function compute() {
-      const P = Number(els.principal.value) || 0;
-      const monthly = Number(els.monthly.value) || 0;
+      // 入力は万円単位 → 内部計算は円に換算
+      const P = (Number(els.principal.value) || 0) * 10000;
+      const monthly = (Number(els.monthly.value) || 0) * 10000;
       const r = (Number(els.rate.value) || 0) / 100;
       const yrs = Number(els.years.value) || 0;
 
@@ -249,7 +251,7 @@
           scales: {
             x: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } },
             y: {
-              ticks: { color: "#94a3b8", callback: v => "¥" + (v / 10000).toLocaleString() + "万" },
+              ticks: { color: "#94a3b8", callback: v => (v / 10000).toLocaleString() + "万円" },
               grid: { color: "#334155" },
             },
           },
@@ -262,8 +264,8 @@
       const save = mode === "save";
       els.modeSave.classList.toggle("active", save);
       els.modeDebt.classList.toggle("active", !save);
-      els.lblPrincipal.textContent = save ? "最初の元金（円）" : "最初の借金額（円）";
-      els.lblMonthly.textContent = save ? "毎月の積立（円）" : "毎月の返済（円）";
+      els.lblPrincipal.textContent = save ? "最初の元金（万円）" : "最初の借金額（万円）";
+      els.lblMonthly.textContent = save ? "毎月の積立（万円）" : "毎月の返済（万円）";
       els.kPrincipal.textContent = save ? "投入した元本の合計" : "残った元本イメージ";
       els.kInterest.textContent = save ? "複利でついた利息" : "上乗せされた利息";
       els.kTotal.textContent = save ? "最終的な金額" : "最終的な借金残高";
